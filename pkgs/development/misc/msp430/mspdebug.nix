@@ -1,4 +1,12 @@
-{ stdenv, fetchFromGitHub, libusb, readline ? null }:
+{ stdenv
+, fetchFromGitHub
+, pkgconfig
+, libusb
+, readline ? null
+, hidapi ? null
+}:
+
+assert stdenv.isDarwin -> hidapi != null;
 
 let
   version = "0.25";
@@ -12,8 +20,17 @@ in stdenv.mkDerivation {
   };
 
   enableParallelBuilding = true;
-  buildInputs = [ libusb readline ];
-  makeFlags = [ "PREFIX=$(out)" "INSTALL=install" ] ++
+  nativeBuildInputs = [ pkgconfig ];
+  buildInputs = [ libusb readline ] ++
+    stdenv.lib.optional stdenv.isDarwin hidapi;
+
+  preBuildPhases = stdenv.lib.optional stdenv.isDarwin "darwinEnvironment";
+  darwinEnvironment = ''
+    export PORTS_CFLAGS=$(pkg-config --cflags hidapi libusb)
+    export PORTS_LDFLAGS="$(pkg-config --libs hidapi libusb) -framework IOKit -framework CoreFoundation"
+  '';
+
+  makeFlags = [ "-e" "PREFIX=$(out)" "INSTALL=install" ] ++
     (if readline == null then [ "WITHOUT_READLINE=1" ] else []);
 
   meta = with stdenv.lib; {
