@@ -16,7 +16,8 @@ in stdenv.mkDerivation {
   };
 
   enableParallelBuilding = true;
-  nativeBuildInputs = [ pkgconfig ];
+  nativeBuildInputs = [ pkgconfig autoPatchelfHook ];
+  runtimeDependencies = [ mspds ];
   buildInputs = [ libusb readline ] ++
     stdenv.lib.optional stdenv.isDarwin hidapi;
 
@@ -28,9 +29,6 @@ in stdenv.mkDerivation {
 
   makeFlags = [ "-e" "PREFIX=$(out)" "INSTALL=install" ] ++
     (if readline == null then [ "WITHOUT_READLINE=1" ] else []);
-
-  nativeBuildInputs = [ autoPatchelfHook ];
-  runtimeDependencies = [ mspds ];
 
   meta = with stdenv.lib; {
     description = "A free programmer, debugger, and gdb proxy for MSP430 MCUs";
