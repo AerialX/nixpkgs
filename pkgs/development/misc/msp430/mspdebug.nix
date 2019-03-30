@@ -1,9 +1,13 @@
-{ stdenv, fetchFromGitHub, libusb, readline ? null }:
+{ stdenv, fetchFromGitHub
+, libusb
+, enableReadline ? true, readline ? null
+}:
 
-let
+assert enableReadline -> readline != null;
+
+stdenv.mkDerivation rec {
   version = "0.25";
-in stdenv.mkDerivation {
-  name = "mspdebug-${version}";
+  pname = "mspdebug";
   src = fetchFromGitHub {
     owner = "dlbeer";
     repo = "mspdebug";
@@ -11,9 +15,13 @@ in stdenv.mkDerivation {
     sha256 = "0prgwb5vx6fd4bj12ss1bbb6axj2kjyriyjxqrzd58s5jyyy8d3c";
   };
 
-  buildInputs = [ libusb readline ];
-  makeFlags = [ "PREFIX=$(out)" "INSTALL=install" ] ++
-    (if readline == null then [ "WITHOUT_READLINE=1" ] else []);
+  enableParallelBuilding = true;
+  buildInputs = [ libusb ]
+  ++ stdenv.lib.optional enableReadline readline;
+
+  installFlags = [ "PREFIX=$(out)" "INSTALL=install" ];
+  makeFlags =
+    stdenv.lib.optional (!enableReadline) "WITHOUT_READLINE=1";
 
   meta = with stdenv.lib; {
     description = "A free programmer, debugger, and gdb proxy for MSP430 MCUs";
