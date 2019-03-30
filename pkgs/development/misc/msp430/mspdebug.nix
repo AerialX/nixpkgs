@@ -1,4 +1,6 @@
-{ stdenv, fetchFromGitHub, libusb, readline ? null }:
+{ stdenv, fetchFromGitHub, autoPatchelfHook
+, libusb, readline ? null, mspds ? null
+}:
 
 let
   version = "0.25";
@@ -10,6 +12,9 @@ in stdenv.mkDerivation {
     rev = "v${version}";
     sha256 = "0prgwb5vx6fd4bj12ss1bbb6axj2kjyriyjxqrzd58s5jyyy8d3c";
   };
+
+  nativeBuildInputs = [ autoPatchelfHook ];
+  runtimeDependencies = [ mspds ];
 
   buildInputs = [ libusb readline ];
   makeFlags = [ "PREFIX=$(out)" "INSTALL=install" ] ++
