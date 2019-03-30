@@ -11,6 +11,7 @@ in stdenv.mkDerivation {
     sha256 = "0prgwb5vx6fd4bj12ss1bbb6axj2kjyriyjxqrzd58s5jyyy8d3c";
   };
 
+  enableParallelBuilding = true;
   buildInputs = [ libusb readline ];
   makeFlags = [ "PREFIX=$(out)" "INSTALL=install" ] ++
     (if readline == null then [ "WITHOUT_READLINE=1" ] else []);
