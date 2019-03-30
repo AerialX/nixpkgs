@@ -1,0 +1,176 @@
+diff -ruN a/DLL430_v3/src/DLL430_OldApiV3.cpp b/DLL430_v3/src/DLL430_OldApiV3.cpp
+--- a/DLL430_v3/src/DLL430_OldApiV3.cpp	2018-04-23 13:56:14.000000000 -0700
++++ b/DLL430_v3/src/DLL430_OldApiV3.cpp	2019-03-29 19:59:46.858085663 -0700
+@@ -69,7 +69,6 @@
+ 
+ #ifdef UNIX
+ #include <boost/filesystem.hpp>
+-using namespace boost::filesystem;
+ #endif
+ 
+ using namespace TI::DLL430;
+diff -ruN a/DLL430_v3/src/TI/DLL430/UpdateManagerFet.cpp b/DLL430_v3/src/TI/DLL430/UpdateManagerFet.cpp
+--- a/DLL430_v3/src/TI/DLL430/UpdateManagerFet.cpp	2018-01-24 13:55:08.000000000 -0800
++++ b/DLL430_v3/src/TI/DLL430/UpdateManagerFet.cpp	2019-03-29 21:16:32.945376412 -0700
+@@ -1305,7 +1305,11 @@
+ 
+ uint32_t UpdateManagerFet::numStepsFpgaFirmware()
+ {
++#ifdef FPGA_UPDATE
+ 	return MSP_FetFpgaHalImage_sections * 2;
++#else
++	return 0;
++#endif
+ }
+ 
+ uint32_t UpdateManagerFet::numStepsDcdcLayerFirmware()
+diff -ruN a/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.cpp b/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.cpp
+--- a/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.cpp	2018-01-24 13:55:08.000000000 -0800
++++ b/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.cpp	2019-03-29 20:17:30.211992821 -0700
+@@ -384,7 +384,7 @@
+ 		int retry = 5;
+ 		while (ec && --retry )
+ 		{
+-			this_thread::sleep_for(chrono::milliseconds(5));
++			this_thread::sleep_for(std::chrono::milliseconds(5));
+ 			ec = port->open(portInfo.path, ec);
+ 		}
+ 
+@@ -409,7 +409,7 @@
+ 	{
+ 		openPort();
+ 		//Seeing issues on some platforms (eg. Ubuntu) when port is immediately closed again
+-		this_thread::sleep_for(chrono::milliseconds(100));
++		this_thread::sleep_for(std::chrono::milliseconds(100));
+ 		close();
+ 	}
+ }
+diff -ruN a/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.h b/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.h
+--- a/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.h	2018-01-24 13:55:08.000000000 -0800
++++ b/DLL430_v3/src/TI/DLL430/UsbCdcIoChannel.h	2019-03-29 20:01:32.708793667 -0700
+@@ -45,6 +45,7 @@
+ 
+ #include <boost/asio/serial_port.hpp>
+ #include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/io_service.hpp>
+ 
+ namespace TI
+ {
+diff -ruN a/Makefile b/Makefile
+--- a/Makefile	2018-04-23 13:56:24.000000000 -0700
++++ b/Makefile	2019-03-29 21:00:09.240191410 -0700
+@@ -43,16 +43,7 @@
+ 
+ PLATFORM := $(shell uname -s)
+ ifeq ($(PLATFORM),Linux)
+-	CXX:= g++
+-
+-	ifdef BIT32
+-	STATICOUTPUT := linux32
+-	CXXFLAGS += -m32
+-	LIBTHIRD = ./ThirdParty/lib
+-	LIBDIRS = -L$(LIBTHIRD)
+-	else
+ 	STATICOUTPUT := linux64
+-	endif
+ 
+ 	OUTPUT := libmsp430.so
+ 	DEFINES += -DUNIX
+@@ -76,8 +67,6 @@
+ 
+ 	HIDOBJ := $(LIBTHIRD)/hid-libusb.o
+ else
+-	CXX:= clang++
+-
+ 	OUTPUT := libmsp430.dylib
+ 	STATICOUTPUT := mac64
+ 
+@@ -142,7 +131,7 @@
+ 	$(CXX) -c -o $@ $< $(USE_PCH) $(CXXFLAGS) $(INCLUDES) $(DEFINES)
+ 
+ $(BSLLIB):
+-	$(MAKE) -C ./ThirdParty/BSL430_DLL
++	$(MAKE) -C ./ThirdParty/BSL430_DLL OUTPUT=../../$(BSLLIB)
+ 
+ install:
+ 	cp $(OUTPUT) /usr/local/lib/
+diff -ruN a/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceSerialUART.cpp b/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceSerialUART.cpp
+--- a/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceSerialUART.cpp	2018-01-24 13:55:08.000000000 -0800
++++ b/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceSerialUART.cpp	2019-03-29 19:07:36.860084384 -0700
+@@ -193,27 +193,27 @@
+     
+ 	port->set_option(RESETControl(LOW_SIGNAL));
+ 	port->set_option(TESTControl(LOW_SIGNAL));
+-	this_thread::sleep_for(chrono::milliseconds(10));
++	this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	port->set_option(TESTControl(HIGH_SIGNAL));
+-	this_thread::sleep_for(chrono::milliseconds(10));
++	this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	port->set_option(TESTControl(LOW_SIGNAL));
+-	this_thread::sleep_for(chrono::milliseconds(10));
++	this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	port->set_option(TESTControl(HIGH_SIGNAL));
+-	this_thread::sleep_for(chrono::milliseconds(10));
++	this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	if( method == STANDARD_INVOKE )
+ 	{
+ 	  port->set_option(RESETControl(HIGH_SIGNAL));
+-	  this_thread::sleep_for(chrono::milliseconds(10));
++	  this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	  port->set_option(TESTControl(LOW_SIGNAL));
+ 	}
+ 	else if ( method == BSL_XXXX_INVOKE )
+ 	{
+ 	  port->set_option(TESTControl(LOW_SIGNAL));
+-	  this_thread::sleep_for(chrono::milliseconds(10));
++	  this_thread::sleep_for(std::chrono::milliseconds(10));
+ 	  port->set_option(RESETControl(HIGH_SIGNAL));
+ 	}
+ 	
+-	this_thread::sleep_for(chrono::milliseconds(250));
++	this_thread::sleep_for(std::chrono::milliseconds(250));
+ 	
+ }
+ 
+diff -ruN a/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceUSB.cpp b/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceUSB.cpp
+--- a/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceUSB.cpp	2018-01-24 13:55:08.000000000 -0800
++++ b/ThirdParty/BSL430_DLL/BSL430_DLL/Physical_Interfaces/MSPBSL_PhysicalInterfaceUSB.cpp	2019-03-29 19:05:02.666038735 -0700
+@@ -189,7 +189,7 @@
+ 			return ERROR_READING_DATA; 
+ 		}
+ 
+-		this_thread::sleep_for(chrono::milliseconds(500));
++		this_thread::sleep_for(std::chrono::milliseconds(500));
+ 	}
+ 
+ 	return 0;
+diff -ruN a/ThirdParty/BSL430_DLL/Makefile b/ThirdParty/BSL430_DLL/Makefile
+--- a/ThirdParty/BSL430_DLL/Makefile	2018-01-24 13:55:08.000000000 -0800
++++ b/ThirdParty/BSL430_DLL/Makefile	2019-03-29 20:32:11.406607652 -0700
+@@ -34,26 +34,6 @@
+ 
+ OUTPUT := ../lib64/libbsl430.a
+ 
+-PLATFORM := $(shell uname -s)
+-ifeq ($(PLATFORM),Linux)
+-	CXX:= g++
+-
+-	ifdef BIT32
+-	CXXFLAGS += -m32
+-	OUTPUT := ../lib/libbsl430.a
+-	endif
+-
+-	ifdef BOOST_DIR
+-	INCLUDES += -I$(BOOST_DIR)
+-	endif
+-else
+-	CXX:= clang++
+-
+-	ifdef BOOST_DIR
+-	INCLUDES += -I$(BOOST_DIR)/include
+-	endif
+-endif
+-
+ all: $(OBJS)
+ 	ar -cq $(OUTPUT) $(OBJS)
+ 

@@ -1,9 +1,5 @@
-{ stdenv
-, fetchFromGitHub
-, pkgconfig
-, libusb
-, readline ? null
-, hidapi ? null
+{ stdenv, fetchFromGitHub, pkgconfig, autoPatchelfHook
+, libusb, hidapi ? null, readline ? null, mspds ? null
 }:
 
 assert stdenv.isDarwin -> hidapi != null;
@@ -32,6 +28,9 @@ in stdenv.mkDerivation {
 
   makeFlags = [ "-e" "PREFIX=$(out)" "INSTALL=install" ] ++
     (if readline == null then [ "WITHOUT_READLINE=1" ] else []);
+
+  nativeBuildInputs = [ autoPatchelfHook ];
+  runtimeDependencies = [ mspds ];
 
   meta = with stdenv.lib; {
     description = "A free programmer, debugger, and gdb proxy for MSP430 MCUs";
