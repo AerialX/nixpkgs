@@ -2,10 +2,12 @@
 , libusb
 , enableReadline ? true, readline ? null
 , hidapi ? null, pkg-config ? null
+, enableMspds ? false, mspds ? null, autoPatchelfHook
 }:
 
 assert stdenv.isDarwin -> hidapi != null && pkg-config != null;
 assert enableReadline -> readline != null;
+assert enableMspds -> mspds != null;
 
 stdenv.mkDerivation rec {
   version = "0.25";
@@ -18,7 +20,8 @@ stdenv.mkDerivation rec {
   };
 
   enableParallelBuilding = true;
-  nativeBuildInputs = stdenv.lib.optional stdenv.isDarwin pkg-config;
+  nativeBuildInputs = stdenv.lib.optional stdenv.isDarwin pkg-config
+  ++ stdenv.lib.optional (enableMspds && stdenv.isLinux) autoPatchelfHook;
   buildInputs = [ libusb ]
   ++ stdenv.lib.optional stdenv.isDarwin hidapi
   ++ stdenv.lib.optional enableReadline readline;
@@ -29,6 +32,15 @@ stdenv.mkDerivation rec {
 
     # Makefile only uses pkg-config if it detects homebrew
     substituteInPlace Makefile --replace brew true
+  '';
+
+  # TODO: wrap with MSPDEBUG_TILIB_PATH env var instead of these rpath fixups in 0.26+
+  runtimeDependencies = stdenv.lib.optional enableMspds mspds;
+  postFixup = stdenv.lib.optionalString (enableMspds && stdenv.isDarwin) ''
+    # autoPatchelfHook only works on linux so...
+    for dep in $runtimeDependencies; do
+      install_name_tool -add_rpath $dep/lib $out/bin/$pname
+    done
   '';
 
   installFlags = [ "PREFIX=$(out)" "INSTALL=install" ];
