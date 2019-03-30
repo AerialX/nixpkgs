@@ -1,0 +1,17 @@
+language: c
+#language: nix
+#nix: 2.2.1
+os:
+- osx
+- linux
+before_install:
+- export NIX_CURL_FLAGS=-sS
+- wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.2.1/install
+- yes | sh /tmp/nix-install
+- source ~/.nix-profile/etc/profile.d/nix.sh
+- mkdir -p ~/.config/nixpkgs && echo '{ allowUnfree = true; }' > ~/.config/nixpkgs/config.nix
+script:
+- nix-build default.nix -A mspdebug
+- nix-build default.nix -A mspds
+- nix-build default.nix -A mspds-bin
+- nix-build override.nix
