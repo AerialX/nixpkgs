@@ -1,8 +1,10 @@
 { stdenv, fetchFromGitHub
 , libusb
 , enableReadline ? true, readline ? null
+, hidapi ? null, pkg-config ? null
 }:
 
+assert stdenv.isDarwin -> hidapi != null && pkg-config != null;
 assert enableReadline -> readline != null;
 
 stdenv.mkDerivation rec {
@@ -16,12 +18,23 @@ stdenv.mkDerivation rec {
   };
 
   enableParallelBuilding = true;
+  nativeBuildInputs = stdenv.lib.optional stdenv.isDarwin pkg-config;
   buildInputs = [ libusb ]
+  ++ stdenv.lib.optional stdenv.isDarwin hidapi
   ++ stdenv.lib.optional enableReadline readline;
 
+  postPatch = stdenv.lib.optionalString stdenv.isDarwin ''
+    # TODO: remove once a new 0.26+ release is made
+    substituteInPlace drivers/tilib_api.c --replace .so ${stdenv.hostPlatform.extensions.sharedLibrary}
+
+    # Makefile only uses pkg-config if it detects homebrew
+    substituteInPlace Makefile --replace brew true
+  '';
+
   installFlags = [ "PREFIX=$(out)" "INSTALL=install" ];
-  makeFlags =
+  makeFlags = [ "UNAME_S=$(unameS)" ] ++
     stdenv.lib.optional (!enableReadline) "WITHOUT_READLINE=1";
+  unameS = stdenv.lib.optionalString stdenv.isDarwin "Darwin";
 
   meta = with stdenv.lib; {
     description = "A free programmer, debugger, and gdb proxy for MSP430 MCUs";
